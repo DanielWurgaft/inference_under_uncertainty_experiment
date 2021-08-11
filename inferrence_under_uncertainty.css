@@ -1,0 +1,22 @@
+body {background-color: grey;
+   color: black;
+   font-size: 30px;}
+
+.btn {
+  border: none;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.btn:hover {
+  border: 5px solid black;
+}
+
+.btn-inactive {
+  background-size: contain;
+  width: 20%;
+  height:20%;
+  border: none;
+  border-radius: 5px;
+  text-align: center;
+}

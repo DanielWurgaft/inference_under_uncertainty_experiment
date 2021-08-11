@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="jspsych.js"></script>
+<script src="convert_csv_to_array.js"></script>
+<script src="plugins/jspsych-html-button-response.js"></script>
+<script src="plugins/jspsych-html-keyboard-response.js"></script>
+<script src="plugins/jspsych-html-slider-response.js"></script>
+<script src="plugins/jspsych-instructions.js"></script>
+<link rel="stylesheet" href="css/jspsych.css">
+<link rel="stylesheet" href="inferrence_under_uncertainty.css">
+</head>
+<script>
+
+const button_audio = new Audio('Stimuli/button_click_sound.mp4')
+const positive_audio = new Audio("Stimuli/positive.wav")
+const negative_audio = new Audio("Stimuli/negative.wav")
+var no_audio = false
+
+const instructions = {
+  type: 'instructions',
+  pages: [
+  `<p>Hello! <br> Welcome to the probablistic reward learning task!</p>`,
+
+  `<p>In this task, on each trial, you will be presented with the same two images. 
+    <br> Each of these images may lead to a <b>win</b> or a <b>loss</b>. <br>
+    They may <b>BOTH </b> lead to the same outcome (e.g: both lead to loss), or have different outcomes. 
+    </p>`,
+
+  `<p>In the beginning of the game, you start with <b>0</b> points. <br>
+  Your goal is to maximize your points by choosing, on each trial, the image you believe will lead to a win.</p>`,
+
+  `<p>First, choose one of the two images. Then, a slider will appear. <br>
+    Using the slider, please indicate how much you are willing to win or lose for your choice. <br> <br>
+    <u>Example:</u> <br>
+    When moving the slider to 7, if the chosen image <b>leads to a win</b>, you will <b>win 7 points</b>. <br>
+    If the chosen image <b>leads to a loss</b>, you will <b>lose 7 points.</b></p>`,
+    `If you manage to score more than 500 points, you will earn an additional 10$ for your participation.`,
+
+  `Before we begin the main task, we will do a few practice trials.`
+  ],
+  show_clickable_nav: true
+};
+
+const audio_update_trial = {
+  type:'html-button-response',
+  stimulus: '<p> Please select whether you would like to continue this task with audio or without audio. <p>',
+  choices: ['Continue with Audio', 'Mute Audio'],
+  on_finish: function(data){
+    if (data.button_pressed	== 1){
+      no_audio = true
+    }
+  }
+}
+
+const pre_task = {
+  type: 'instructions',
+  pages: ['Great job! Now, you will start the real task!'],
+  show_clickable_nav: true
+};
+
+var total  = 0
+var IMAGE1 = "Stimuli/fractal3.jpg"
+var IMAGE2 = "Stimuli/fractal4.jpg"
+var PRACTICE_IMAGE1 = "Stimuli/fractal7.jpg"
+var PRACTICE_IMAGE2 = "Stimuli/fractal2.jpg"
+var image1 = null
+var image2 = null
+var button_pressed = null
+var stimulus = null
+
+function create_timeline_variables() {
+  var timeline_variables = []
+  for (let i =0; i< LEFT.length-1; i++){
+    timeline_variables.push({'image_1_win': parseInt(LEFT[i]), 'image_2_win': parseInt(RIGHT[i]), 'main_task': 1})
+  }
+  return timeline_variables
+}
+
+var button_trial = {
+  on_start: function(trial){
+    if (jsPsych.timelineVariable("main_task", true) == 0){ image1 = PRACTICE_IMAGE1;  image2 = PRACTICE_IMAGE2}
+    else{ image1 = IMAGE1;  image2 = IMAGE2}
+    trial.stimulus = `<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">
+    +</div><p style="position:absolute; top: 50%; left: 47%; font-size: 2vw"><b>Total: <br>  `+total+` </b></p>` 
+    trial.button_html = [`<button class="btn" style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; 
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button>`,
+   `<button class="btn" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; 
+   background: url(`+image2+`) no-repeat; background-size: cover;"></button>`]
+  },
+  type: 'html-button-response',
+  choices: ['0', '1'],
+  stimulus: '',
+  button_html: [``,``],
+  trial_duration: 2000000,
+   on_finish: function(data){
+     button_pressed = data.button_pressed
+    if (!no_audio){
+    button_audio.play()}
+   }
+}
+
+
+var press_feedback = {
+  on_start: function(trial){
+    if (jsPsych.timelineVariable("main_task", true) == 0){ image1 = PRACTICE_IMAGE1;  image2 = PRACTICE_IMAGE2}
+    else{ image1 = IMAGE1;  image2 = IMAGE2}
+    if (button_pressed == 0){stimulus =  `
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; border: 10px solid black;
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; 
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`}
+  else{
+    stimulus =  ` 
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; 
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; border: 10px solid black;
+  background: url(`+image2+`) no-repeat; background-size: cover;"></button>`
+  }
+  trial.stimulus = `<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">
+    +</div><p style="position:absolute; top: 50%; left: 47%; font-size: 2vw"><b>Total: <br>  `+total+` </b></p>` + stimulus
+  },
+  stimulus: '',
+  response_ends_trial: false,
+  trial_duration: 200,
+  type: 'html-keyboard-response'
+}
+
+var slider = {
+    on_start: function(trial){
+      trial.slider_start =  Math.random()*9
+    },
+    type: 'html-slider-response',
+    stimulus: '<p></p>',
+    labels: ['0', '9'],
+    prompt: "<p><b>How much are you willing to win/lose for your choice?</b></p>",
+    max: 9,
+    min: 0,
+    step: 0.25
+};
+
+var if_node_response = {
+  timeline: [press_feedback, slider],
+  conditional_function: function(){
+    if (button_pressed != null){
+       return true
+    }
+    else{
+      return false
+    }
+  }
+}
+
+var respond_faster = {
+  stimulus: `<div><p><b style="position:absolute; color:rgb(300 0 0); top: 45%; left: 35%; font-size: 4vw"> Respond Faster! </b></p></div>`,
+  response_ends_trial: false,
+  trial_duration: 1000,
+  type: 'html-keyboard-response'
+}
+
+var if_node_respond_faster = {
+  timeline: [respond_faster],
+  conditional_function: function(){
+    if (button_pressed == null){
+      stimulus  =`
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; border: 10px solid black;
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; border: 10px solid black;
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`
+       return true
+    }
+    else{
+      return false
+    }
+  }
+}
+
+var feedback = {  
+  on_start: function(trial){
+    if (button_pressed == 0){
+      if (jsPsych.timelineVariable("image_1_win", true) == 0){var multiple = -1}
+      else{var multiple = 1}
+      total += (jsPsych.data.getLastTrialData().select("response").values[0])*multiple
+      trial.stimulus = `<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">+</div><p style="position:absolute; top: 50%; left: 47%; font-size: 2vw"><b>Total: <br>`+total+` </b></p>`
+      if (jsPsych.timelineVariable("image_1_win", true) == 1){
+        stimulus =  `
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; border: 10px solid rgb(0 260 0);
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; 
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`
+        trial.stimulus += stimulus + '<div style="font-size:3vw; color:rgb(0 260 0); position: absolute; top:24%; left:17%"><b>WIN</div>'
+        if (!no_audio){positive_audio.play()}
+      }
+      else{
+        stimulus = `
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; border: 10px solid rgb(260 0 0);
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; 
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`
+        trial.stimulus += stimulus + '<div style="font-size:3vw; color:rgb(260 0 0); position: absolute; top:24%; left:17%"><b>LOSS</div>'
+        if (!no_audio){negative_audio.play()}
+      }
+    }
+    else if (button_pressed == 1){
+      if (jsPsych.timelineVariable("image_2_win", true) == 0){var multiple = -1}
+      else{var multiple = 1}
+      total += (jsPsych.data.getLastTrialData().select("response").values[0])*multiple      
+      trial.stimulus = `<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">+</div><p style="position:absolute; top: 50%; left: 47%; font-size: 2vw"><b>Total: <br> `+total+` </b></p>`
+      if (jsPsych.timelineVariable("image_2_win", true) == 1){
+        stimulus =  `
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; 
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; border: 10px solid rgb(0 260 0);
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`
+        trial.stimulus +=  stimulus + '<div style="font-size:3vw; color:rgb(0 260 0); position: absolute; top:24%; right:17%"><b>WIN</div>'
+        if (!no_audio){positive_audio.play()}
+      }
+      else{
+        stimulus = `
+  <button disabled class="btn-inactive"  style="position:absolute; top:30%; bottom: 30%; left: 5%; width:30%; height: 40%; 
+  background: url(`+image1+`) no-repeat; background-size: cover;"></button> 
+  <button disabled class="btn-inactive" style="position:absolute; top:30%; bottom: 30%; right: 5%; width:30%; height: 40%; border: 10px solid rgb(260 0 0);
+  background: url(`+image2+`)no-repeat; background-size: cover; "></button>`
+        trial.stimulus += stimulus + '<div style="font-size:3vw; color:rgb(260 0 0); position: absolute; top:24%; right:16%"><b>LOSS</div>'
+        if (!no_audio){negative_audio.play()}
+      }
+    }
+    else if (button_pressed == null){
+      total += -4.5
+      trial.stimulus = `<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">+</div><p style="position:absolute; top: 50%; left: 47%; font-size: 2vw"><b>Total: <br>`+total+` </b></p>`+ stimulus
+      if (!no_audio){negative_audio.play()}
+    }
+  }, 
+  type: 'html-keyboard-response',
+  stimulus:  ``,
+  response_ends_trial: false,
+  trial_duration: 1500
+}
+
+var fixation = {
+  type: 'html-keyboard-response',
+  stimulus: '<div style="font-size:15vw; position: absolute; top: 42%; left: 45.5%">+</div>',
+  choices: jsPsych.NO_KEYS,
+  trial_duration: 1000
+}
+
+var practice_timeline = {
+  timeline: [button_trial, if_node_response, if_node_respond_faster, feedback /*, fixation*/],
+  timeline_variables: [{image_1_win: 1, image_2_win: 0, main_task: 0 },
+                        {image_1_win:0, image_2_win:0, main_task: 0},
+                        {image_1_win: 1, image_2_win: 1, main_task: 0},
+                        {image_1_win:0, image_2_win: 1, main_task: 0}],
+  loop_function: function(){
+    total = 0
+    return false
+  }
+}
+
+const timeline_vars = create_timeline_variables()
+console.log(timeline_vars)
+
+var main_timeline = {
+  timeline: [button_trial, if_node_response, if_node_respond_faster, feedback /*, fixation*/],
+  timeline_variables: timeline_vars
+}
+
+    jsPsych.init({
+    timeline: [instructions, practice_timeline, pre_task, audio_update_trial, main_timeline],
+    max_load_time: 20000000,
+    preload_images: [IMAGE2, IMAGE1, PRACTICE_IMAGE2, PRACTICE_IMAGE1],
+    preload_audio: ['Stimuli/button_click_sound.mp4', "Stimuli/positive.wav", "Stimuli/negative.wav"],
+    on_finish: function(){
+      jsPsych.data.displayData('json');
+    }
+        });
+</script>
+</html>
